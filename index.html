@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+ <meta charset="UTF-8">
+ <title>Djoeragan Bumbu</title>
+ <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+ <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+ 
+ <style>
+ :root {
+ --primary: #2c3e50;
+ --secondary: #e67e22;
+ --bg-color: #f4f6f9;
+ }
+ body { background-color: var(--bg-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+ #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--primary); }
+ .login-card { background: #fff; padding: 30px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+ #app-layout { display: block; min-height: 100vh; }
+ .sidebar { background-color: var(--primary); color: white; width: 250px; position: fixed; height: 100%; overflow-y: auto; transition: 0.3s; z-index:1000;}
+ .sidebar .brand { padding: 20px; font-size: 20px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center;}
+ .sidebar .nav-link { color: rgba(255,255,255,0.8); padding: 12px 20px; border-radius: 0; cursor: pointer; }
+ .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: #fff; border-left: 4px solid var(--secondary); }
+ .main-content { margin-left: 250px; padding: 20px; width: calc(100% - 250px); transition: 0.3s; }
+ .topbar { background: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;}
+ .view-section { display: none; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+ .view-section.active { display: block; }
+ .stat-card { background: #fff; padding: 20px; border-radius: 8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+ @media (max-width: 768px) {
+ .sidebar { transform: translateX(-250px); }
+ .sidebar.show { transform: translateX(0); }
+ .main-content { margin-left: 0; width: 100%; }
+ }
+ .table-invoice input { border: none; background: transparent; width: 100%; }
+ .table-invoice input:focus { outline: none; border-bottom: 1px solid var(--secondary); }
+ .cursor-pointer { cursor: pointer; }
+ .config-logo-preview { max-width: 400px; max-height: 200px; margin-top: 10px; border: 1px solid #ddd; padding: 5px; }
+ .btn-config { margin-top: 10px; }
+
+/* ===========================
+   Responsive Invoice Table (Optimized Table View)
+=========================== */
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px; /* Memberi ruang untuk scrollbar */
+}
+
+.table-invoice {
+    /* Diperkecil dari 900px agar geser di HP tidak terlalu jauh */
+    min-width: 720px; 
+}
+
+.table-invoice th,
+.table-invoice td {
+    white-space: nowrap;
+    vertical-align: middle; /* Agar input sejajar di tengah */
+}
+
+/* Menjaga inputan tidak menyusut terlalu ekstrem saat layar sempit */
+.table-invoice .item-barang { min-width: 200px; }
+.table-invoice .item-qty { min-width: 70px; }
+.table-invoice .item-satuan { min-width: 80px; }
+.table-invoice .item-harga { min-width: 120px; }
+.table-invoice .item-total { min-width: 120px; }
+
+@media (max-width: 768px) {
+    .table-invoice {
+        font-size: 13px; /* Huruf sedikit dikecilkan agar muat banyak */
+    }
+
+    .form-control-sm {
+        font-size: 13px;
+    }
+
+    /* Mengurangi jarak kosong (padding) di dalam tabel pada HP */
+    .table-invoice th, 
+    .table-invoice td {
+        padding: 6px 4px; 
+    }
+
+    /* Mempercantik bentuk Scrollbar horizontal di HP agar terlihat jelas */
+    .table-responsive::-webkit-scrollbar {
+        height: 6px;
+    }
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+        border-radius: 4px;
+    }
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 4px;
+    }
+}
+ </style>
+</head>
+<body>
+
+<div id="app-layout">
+ <div class="sidebar" id="sidebar">
+ <div class="brand">DJOERAGAN. invoice</div>
+ <nav class="nav flex-column mt-3">
+ <a class="nav-link active" data-view="dashboard"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
+ <a class="nav-link" data-view="buat-invoice"><i class="bi bi-receipt me-2"></i> Buat Invoice</a>
+ <a class="nav-link" data-view="riwayat-invoice"><i class="bi bi-clock-history me-2"></i> Riwayat Invoice</a>
+ <a class="nav-link" data-view="draft-invoice"><i class="bi bi-save me-2"></i> Draft Invoice</a>
+ <a class="nav-link" data-view="buat-penawaran"><i class="bi bi-file-earmark-text me-2"></i> Buat Penawaran</a>
+ <a class="nav-link" data-view="riwayat-penawaran"><i class="bi bi-journal-text me-2"></i> Riwayat Penawaran</a>
+ <a class="nav-link" data-view="master-pelanggan"><i class="bi bi-people me-2"></i> Master Pelanggan</a>
+ <a class="nav-link" data-view="master-barang"><i class="bi bi-box-seam me-2"></i> Master Barang</a>
+  <a class="nav-link" data-view="config-toko"><i class="bi bi-gear me-2"></i> Pengaturan Toko</a>
+ </nav>
+ </div>
+
+ <div class="main-content">
+ <div class="topbar">
+ <button class="btn d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')"><i class="bi bi-list fs-4"></i></button>
+ <h5 class="m-0" id="topbar-title">Dashboard</h5>
+ <div><span class="me-3" id="user-info-display">User</span></div>
+ </div>
+
+ <div id="view-dashboard" class="view-section active">
+ <div class="row g-3 mb-4">
+ <div class="col-md-3"><div class="stat-card"><h6>Invoice Hari Ini</h6><h3 id="dash-count-today">0</h3></div></div>
+ <div class="col-md-3"><div class="stat-card"><h6>Transaksi Hari Ini</h6><h3 id="dash-total-today">Rp 0</h3></div></div>
+ <div class="col-md-3"><div class="stat-card"><h6>Invoice Bulan Ini</h6><h3 id="dash-count-month">0</h3></div></div>
+ <div class="col-md-3"><div class="stat-card"><h6>Transaksi Bulan Ini</h6><h3 id="dash-total-month">Rp 0</h3></div></div>
+ </div>
+ <button class="btn btn-primary" style="background:var(--secondary); border:none;" id="btn-buat-invoice-dari-dashboard"><i class="bi bi-plus-lg"></i> Buat Invoice Baru</button>
+ </div>
+
+ <div id="view-buat-invoice" class="view-section">
+ <form id="form-invoice">
+ <div class="row mb-3">
+ <div class="col-md-6 position-relative">
+ <label class="form-label">Pelanggan (Ketik untuk cari)</label>
+ <input type="text" id="inv-pelanggan-search" class="form-control" placeholder="Nama pelanggan..." autocomplete="off">
+ <input type="hidden" id="inv-id-pelanggan">
+ <ul class="list-group position-absolute d-none" id="pelanggan-autocomplete" style="z-index: 1000; max-height: 200px; overflow-y: auto; width: 95%;"></ul>
+ <div class="mt-2 bg-light p-2 rounded small" id="pelanggan-info-box">Belum ada pelanggan dipilih.</div>
+ </div>
+ <div class="col-md-3">
+ <label class="form-label">Tanggal Invoice</label>
+ <input type="date" id="inv-tanggal" class="form-control" required>
+ </div>
+ <div class="col-md-3">
+ <label class="form-label">Jatuh Tempo</label>
+ <input type="date" id="inv-tempo" class="form-control" required>
+ </div>
+ </div>
+ 
+ <div class="table-responsive">
+    <table class="table table-bordered table-invoice mt-4">
+ <thead class="table-light">
+ <tr>
+ <th width="45%">Barang</th>
+ <th width="10%">Qty</th>
+ <th width="10%">Satuan</th>
+ <th width="17%">Harga</th>
+ <th width="18%">Total</th>
+ <th><button type="button" class="btn btn-sm btn-success" onclick="addInvoiceRow()"><i class="bi bi-plus"></i></button></th>
+ </tr>
+ </thead>
+ <tbody id="invoice-items"></tbody>
+ </table>
+ </div>
+ 
+ <div class="row">
+ <div class="col-md-6">
+ <div class="mb-2"><label>Metode Pembayaran</label><select id="inv-metode" class="form-select"><option>Transfer Bank</option><option>Tunai</option></select></div>
+ <div class="mb-2"><label>Rekening Tujuan</label><select id="inv-rekening" class="form-select">
+    <option value="">Memuat rekening...</option>
+</select></div>
+ <div class="mb-2"><label>Catatan</label><textarea
+id="inv-catatan"
+class="form-control"
+rows="2"
+oninput="saveDraft()"></textarea></div>
+ </div>
+ <div class="col-md-6">
+ <table class="table table-sm table-borderless text-end">
+ <tr><td>Subtotal</td><td><input type="number" id="inv-subtotal" class="form-control text-end" readonly></td></tr>
+ <tr><td>Diskon</td><td><input type="number"
+id="inv-diskon"
+class="form-control text-end"
+value="0"
+oninput="calculateTotal();saveDraft();"></td></tr>
+ <tr><td>Pajak</td><td><input type="number"
+id="inv-pajak"
+class="form-control text-end"
+value="0"
+oninput="calculateTotal();saveDraft();"></td></tr>
+ <tr><td>Ongkir</td><td><input type="number"
+id="inv-ongkir"
+class="form-control text-end"
+value="0"
+oninput="calculateTotal();saveDraft();"></td></tr>
+ <tr><td>DP</td><td>  <input type="number" id="inv-dp" class="form-control text-end" value="0" oninput="calculateTotal();saveDraft();"></td>
+</tr>
+ <tr><th>Grand Total</th><th><input type="number" id="inv-grandtotal" class="form-control text-end fw-bold" readonly></th></tr>
+ </table>
+ <button
+type="button"
+class="btn btn-warning me-2"
+id="btn-simpan-draft"
+onclick="simpanDraft()">
+<i class="bi bi-save"></i>
+Simpan Draft
+</button>
+
+<button
+type="button"
+class="btn btn-success"
+id="btn-proses-invoice"
+onclick="prosesInvoice()">
+<i class="bi bi-printer"></i>
+Proses Invoice
+</button>
+ </div>
+ </div>
+ </form>
+ </div>
+
+ <div id="view-riwayat-invoice" class="view-section">
+ <div class="mb-3"><input type="text" id="search-invoice" class="form-control" placeholder="Cari invoice (Nama, No Invoice)..." onkeyup="renderTableRiwayat()"></div>
+ <div class="table-responsive">
+ <table class="table table-hover align-middle">
+ <thead class="table-light">
+ <tr><th>No Invoice</th><th>Tanggal</th><th>Pelanggan</th><th>Grand Total</th><th>Status</th><th>Aksi</th></tr>
+ </thead>
+ <tbody id="table-body-riwayat"></tbody>
+ </table>
+ </div>
+ </div>
+
+<div id="view-draft-invoice" class="view-section">
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+               Draft Invoice
+            </h5>
+            <button
+                class="btn btn-success btn-sm"
+                onclick="loadDraftInvoice()">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>No Invoice</th>
+                            <th>Tanggal</th>
+                            <th>Pelanggan</th>
+                            <th>Total</th>
+                            <th width="180">
+                               Aksi
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="draft-invoice-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                Belum ada Draft
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.quo-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center}
+.quo-overlay.show{display:flex}
+.quo-box{background:#fff;border-radius:8px;width:95%;max-width:920px;max-height:90vh;display:flex;flex-direction:column}
+.quo-box-head,.quo-box-foot{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.quo-box-head{border-bottom:1px solid #ddd}
+.quo-box-foot{border-top:1px solid #ddd}
+.quo-box-body{overflow:auto;padding:12px 16px}
+.table-quo{min-width:720px}
+.table-quo td{vertical-align:middle}
+.table-quo .q-nama{min-width:220px}
+.table-quo .q-qty{min-width:70px}
+.table-quo .q-satuan{min-width:80px}
+.table-quo .q-harga,.table-quo .q-total{min-width:120px}
+</style>
+
+<div id="view-buat-penawaran" class="view-section">
+ <div id="quo-edit-banner" class="alert alert-warning py-2 d-none"></div>
+ <form id="form-penawaran" onsubmit="return false;">
+  <div class="row mb-3">
+   <div class="col-md-6 position-relative">
+    <label class="form-label">Pelanggan (ketik untuk cari, atau isi bebas)</label>
+    <input type="text" id="quo-pelanggan-search" class="form-control" placeholder="Nama pelanggan..." autocomplete="off">
+    <input type="hidden" id="quo-id-pelanggan">
+    <ul class="list-group position-absolute d-none" id="quo-pelanggan-autocomplete" style="z-index:1000;max-height:200px;overflow-y:auto;width:95%;"></ul>
+    <div class="row g-2 mt-1">
+     <div class="col-12"><input type="text" id="quo-alamat" class="form-control form-control-sm" placeholder="Alamat"></div>
+     <div class="col-12"><input type="text" id="quo-telp" class="form-control form-control-sm" placeholder="Telepon"></div>
+    </div>
+   </div>
+   <div class="col-md-3">
+    <label class="form-label">Tanggal Penawaran</label>
+    <input type="date" id="quo-tanggal" class="form-control">
+   </div>
+   <div class="col-md-3">
+    <label class="form-label">Berlaku Sampai</label>
+    <input type="date" id="quo-berlaku" class="form-control">
+   </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-2">
+   <button type="button" class="btn btn-primary btn-sm" onclick="quoOpenPicker()"><i class="bi bi-ui-checks-grid"></i> Pilih Banyak Barang</button>
+   <button type="button" class="btn btn-outline-success btn-sm" onclick="quoAddRow()"><i class="bi bi-plus"></i> Baris Manual</button>
+  </div>
+  <datalist id="quo-barang-list"></datalist>
+  <div class="table-responsive">
+   <table class="table table-bordered table-quo">
+    <thead class="table-light">
+     <tr><th width="42%">Barang</th><th width="10%">Qty</th><th width="10%">Satuan</th><th width="17%">Harga</th><th width="18%">Total</th><th></th></tr>
+    </thead>
+    <tbody id="quo-items"></tbody>
+   </table>
+  </div>
+
+  <div class="row">
+   <div class="col-md-6">
+    <div class="mb-2"><label>Syarat &amp; Ketentuan (bebas, per penawaran)</label>
+     <textarea id="quo-syarat" class="form-control" rows="4" placeholder="Contoh: Pembayaran 50% di muka. Pengiriman 3 hari kerja. Harga belum termasuk ongkir."></textarea></div>
+    <div class="mb-2"><label>Catatan</label>
+     <textarea id="quo-catatan" class="form-control" rows="2"></textarea></div>
+   </div>
+   <div class="col-md-6">
+    <table class="table table-sm table-borderless text-end">
+     <tr><td>Subtotal</td><td><input type="number" id="quo-subtotal" class="form-control text-end" readonly></td></tr>
+     <tr><td>Diskon</td><td><input type="number" id="quo-diskon" class="form-control text-end" value="0" oninput="quoCalcTotal()"></td></tr>
+     <tr><td>Pajak</td><td><input type="number" id="quo-pajak" class="form-control text-end" value="0" oninput="quoCalcTotal()"></td></tr>
+     <tr><td>Ongkir</td><td><input type="number" id="quo-ongkir" class="form-control text-end" value="0" oninput="quoCalcTotal()"></td></tr>
+     <tr><th>Grand Total</th><th><input type="number" id="quo-grandtotal" class="form-control text-end fw-bold" readonly></th></tr>
+    </table>
+    <button type="button" class="btn btn-outline-secondary me-2" onclick="quoReset()">Reset</button>
+    <button type="button" class="btn btn-warning me-2" id="btn-quo-draft" onclick="quoSimpan('draft')"><i class="bi bi-save"></i> Simpan Draft</button>
+    <button type="button" class="btn btn-success" id="btn-quo-final" onclick="quoSimpan('final')"><i class="bi bi-printer"></i> Proses &amp; Cetak PDF</button>
+   </div>
+  </div>
+ </form>
+</div>
+
+<div id="view-riwayat-penawaran" class="view-section">
+ <div class="row g-2 mb-3">
+  <div class="col-md-8"><input type="text" id="quo-search" class="form-control" placeholder="Cari penawaran (nama, nomor)..." onkeyup="quoRenderList()"></div>
+  <div class="col-md-4">
+   <select id="quo-filter-status" class="form-select" onchange="quoRenderList()">
+    <option value="">Semua status</option><option>Draft</option><option>Final</option><option>Disetujui</option><option>Ditolak</option><option>Void</option>
+   </select>
+  </div>
+ </div>
+ <div class="table-responsive">
+  <table class="table table-hover align-middle">
+   <thead class="table-light"><tr><th>No Penawaran</th><th>Tanggal</th><th>Berlaku s/d</th><th>Pelanggan</th><th>Grand Total</th><th>Status</th><th>Aksi</th></tr></thead>
+   <tbody id="table-body-penawaran"></tbody>
+  </table>
+ </div>
+</div>
+
+<div id="quo-modal" class="quo-overlay">
+ <div class="quo-box">
+  <div class="quo-box-head">
+   <strong>Pilih Banyak Barang</strong>
+   <button type="button" class="btn-close" onclick="quoClosePicker()"></button>
+  </div>
+  <div class="quo-box-body">
+   <div class="row g-2 mb-2">
+    <div class="col-md-8"><input type="text" id="quo-pick-search" class="form-control" placeholder="Cari SKU / nama..." oninput="quoRenderPicker()"></div>
+    <div class="col-md-4"><select id="quo-pick-kat" class="form-select" onchange="quoRenderPicker()"></select></div>
+   </div>
+   <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+     <thead class="table-light"><tr>
+      <th width="40"><input type="checkbox" id="quo-pick-all" onchange="quoPickAll(this)" title="Pilih semua hasil filter"></th>
+      <th>SKU</th><th>Nama</th><th>Kategori</th><th>Satuan</th><th class="text-end">Harga</th><th width="90">Qty</th>
+     </tr></thead>
+     <tbody id="quo-pick-body"></tbody>
+    </table>
+   </div>
+  </div>
+  <div class="quo-box-foot">
+   <span id="quo-pick-count" class="text-muted">0 dipilih</span>
+   <div>
+    <button type="button" class="btn btn-outline-secondary me-2" onclick="quoClosePicker()">Batal</button>
+    <button type="button" class="btn btn-primary" onclick="quoApplyPicker()">Tambahkan</button>
+   </div>
+  </div>
+ </div>
+</div>
+
+ <div id="view-master-pelanggan" class="view-section">
+ <div class="d-flex justify-content-between mb-3">
+ <input type="text" id="search-pelanggan" class="form-control w-50" placeholder="Cari pelanggan..." onkeyup="renderTablePelanggan()">
+ <button class="btn btn-success" onclick="formPelanggan({})"><i class="bi bi-plus"></i> Tambah</button>
+ </div>
+ <table class="table table-bordered">
+ <thead class="table-light">
+ <tr><th>Nama</th><th>Perusahaan</th><th>Telepon</th><th>Alamat</th><th>Aksi</th></tr>
+ </thead>
+ <tbody id="table-body-pelanggan"></tbody>
+ </table>
+ </div>
+
+ <div id="view-master-barang" class="view-section">
+ <div class="d-flex justify-content-between mb-3">
+ <input type="text" id="search-barang" class="form-control w-50" placeholder="Cari barang (SKU atau Nama)..." onkeyup="renderTableBarang()">
+ <button class="btn btn-success" onclick="formBarang({})"><i class="bi bi-plus"></i> Tambah</button>
+ </div>
+ <div class="table-responsive">
+ <table class="table table-bordered table-hover align-middle">
+ <thead class="table-light">
+ <tr><th>SKU</th><th>Nama Barang</th><th>Kategori</th><th>Satuan</th><th>Harga Acuan</th><th>Aksi</th></tr>
+ </thead>
+ <tbody id="table-body-barang"></tbody>
+ </table>
+ </div>
+ </div>
+  <!-- VIEW: KONFIGURASI TOKO -->
+ <div id="view-config-toko" class="view-section">
+ <h4 class="mb-4">Pengaturan Toko (Logo & Tanda Tangan)</h4>
+ 
+ <div class="row">
+ <div class="col-md-6">
+ <div class="card">
+ <div class="card-body">
+ <h5 class="card-title">Logo Toko</h5>
+ <p class="text-muted small">Upload logo untuk ditampilkan di invoice (format: PNG, JPG, max 2MB)</p>
+ 
+ <input type="file" id="input-logo" class="form-control" accept="image/*">
+ <div id="logo-preview-container" class="mt-3">
+ <img id="logo-preview" class="config-logo-preview d-none" src="" alt="Preview Logo">
+ </div>
+ <button class="btn btn-primary btn-config" onclick="uploadLogo()">Simpan Logo</button>
+ </div>
+ </div>
+ </div>
+ 
+ <div class="col-md-6">
+ <div class="card">
+ <div class="card-body">
+ <h5 class="card-title">Informasi Penandatangan</h5>
+ <p class="text-muted small">Data ini akan muncul di bagian tanda tangan invoice</p>
+ 
+ <div class="mb-3">
+ <label class="form-label">Nama Pemilik/Penandatangan</label>
+ <input type="text" id="input-nama-pemilik" class="form-control" placeholder="Contoh: John Doe">
+ </div>
+ 
+ <div class="mb-3">
+ <label class="form-label">Jabatan</label>
+ <input type="text" id="input-jabatan-pemilik" class="form-control" placeholder="Contoh: Owner">
+ </div>
+ 
+ <button class="btn btn-success btn-config" onclick="saveInfoPemilik()">Simpan Informasi</button>
+ </div>
+ </div>
+ </div>
+ </div>
+ 
+<hr class="my-4">
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Rekening Owner</strong>
+        <button
+            class="btn btn-success btn-sm"
+            onclick="formRekening({})">
+            <i class="bi bi-plus"></i>
+            Tambah Rekening
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead>
+                <tr>
+                    <th>Bank</th>
+                    <th>No Rekening</th>
+                    <th>Atas Nama</th>
+                    <th width="130">Aksi</th>
+                </tr>
+                </thead>
+                <tbody id="rekening-body">
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">
+                            Belum ada rekening.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+ <div class="alert alert-info mt-4">
+ <i class="bi bi-info-circle me-2"></i>
+ <strong>Catatan:</strong> Perubahan akan langsung diterapkan pada invoice yang dibuat setelah penyimpanan.
+ </div>
+ </div>
+ </div>
+</div>
+
+<script>
+var currentUser = {
+ id_user: "USR-DUMMY",
+ username: "admin_sistem",
+ nama_lengkap: "Admin",
+ role: "Admin"
+};
+var currentDraftId = null;
+var currentInvoiceId = null;
+var isEditInvoice = false;
+var dbData = { pelanggan: [], barang: [], invoice: [] };
+
+function escapeHtml(str) {
+ if (!str) return '';
+ return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function formatDate(value) {
+
+    if (!value) return "-";
+
+    var d = new Date(value);
+
+    if (isNaN(d.getTime())) {
+        return value;
+    }
+
+    return d.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+    });
+
+}
+
+function parseNumber(val) {
+ if (typeof val === 'number') return isNaN(val) ? 0 : val;
+ if (!val) return 0;
+ var cleaned = String(val).replace(/[^0-9.-]/g, '');
+ return parseFloat(cleaned) || 0;
+}
+function saveDraft() {
+
+    var draft = {
+        pelanggan: document.getElementById("inv-pelanggan-search").value,
+        idPelanggan: document.getElementById("inv-id-pelanggan").value,
+        tanggal: document.getElementById("inv-tanggal").value,
+        tempo: document.getElementById("inv-tempo").value,
+        metode: document.getElementById("inv-metode").value,
+        rekening: document.getElementById("inv-rekening").value,
+        catatan: document.getElementById("inv-catatan").value,
+        diskon: document.getElementById("inv-diskon").value,
+        pajak: document.getElementById("inv-pajak").value,
+        ongkir: document.getElementById("inv-ongkir").value,
+        dp: document.getElementById("inv-dp").value,
+        subtotal: document.getElementById("inv-subtotal").value,
+        grandtotal: document.getElementById("inv-grandtotal").value,
+        items: []
+    };
+
+    document.querySelectorAll("#invoice-items tr").forEach(function(row){
+
+        draft.items.push({
+
+            barang : row.querySelector(".item-barang").value,
+
+            nama : row.querySelector(".item-nama").value,
+
+            qty : row.querySelector(".item-qty").value,
+
+            satuan : row.querySelector(".item-satuan").value,
+
+            harga : row.querySelector(".item-harga").value
+
+        });
+
+    });
+
+    localStorage.setItem("invoiceDraft",JSON.stringify(draft));
+
+}
+
+function loadDraft() {
+  // Draft sekarang menggunakan Spreadsheet (DRAFT_INVOICE).
+  // Fungsi ini sengaja dikosongkan agar tidak lagi membaca localStorage.
+  return;
+}
+
+window.onload = function() {
+ document.getElementById('inv-tanggal').valueAsDate = new Date();
+ var tempo = new Date();
+ tempo.setDate(tempo.getDate() + 14);
+ document.getElementById('inv-tempo').valueAsDate = tempo;
+ document.getElementById('user-info-display').innerText = currentUser.nama_lengkap;
+ setupNavigation();
+ var lastView = localStorage.getItem('djoeragan_last_view') || 'dashboard';
+ navigateToView(lastView);
+ fetchAllData();
+
+setTimeout(function(){
+    loadDraft();
+},1000);
+};
+
+function setupNavigation() {
+ var navLinks = document.querySelectorAll('.sidebar .nav-link');
+ navLinks.forEach(function(link) {
+ link.addEventListener('click', function(e) {
+ e.preventDefault();
+ var viewId = this.getAttribute('data-view');
+ if (viewId) {
+ navigateToView(viewId);
+ }
+ });
+ });
+ var btnBuatInvoice = document.getElementById('btn-buat-invoice-dari-dashboard');
+ if (btnBuatInvoice) {
+ btnBuatInvoice.addEventListener('click', function() {
+ navigateToView('buat-invoice');
+ });
+ }
+}
+
+function navigateToView(viewId) {
+ document.querySelectorAll('.view-section').forEach(function(el) {
+ el.classList.remove('active');
+ });
+ var targetView = document.getElementById('view-' + viewId);
+ if(targetView) targetView.classList.add('active');
+ document.querySelectorAll('.nav-link').forEach(function(el) {
+ el.classList.remove('active');
+ });
+ var activeNav = document.querySelector('.nav-link[data-view="' + viewId + '"]');
+ if(activeNav) activeNav.classList.add('active');
+ var titles = {
+ 'dashboard': 'Dashboard',
+ 'buat-invoice': 'Buat Invoice',
+ 'riwayat-invoice': 'Riwayat Invoice',
+ 'draft-invoice': 'Draft Invoice',
+ 'master-pelanggan': 'Master Pelanggan',
+ 'master-barang': 'Master Barang',
+ 'config-toko': 'Pengaturan Toko',
+ 'buat-penawaran': 'Buat Penawaran',
+ 'riwayat-penawaran': 'Riwayat Penawaran'
+};
+ document.getElementById('topbar-title').innerText = titles[viewId] || 'Djoeragan Bumbu';
+ localStorage.setItem('djoeragan_last_view', viewId);
+ if(viewId === 'dashboard') loadDashboard();
+ if(viewId === 'riwayat-invoice') renderTableRiwayat();
+ if(viewId === 'draft-invoice') loadDraftInvoice();
+ if(viewId === 'master-pelanggan') renderTablePelanggan();
+ if(viewId === 'master-barang') renderTableBarang();
+ if(viewId === 'config-toko') loadTokoConfig();
+ if(viewId === 'buat-penawaran') quoOnOpen();
+ if(viewId === 'riwayat-penawaran') quoLoadList();
+ if(viewId === 'buat-invoice') loadRekeningDropdown();
+ if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('show');
+}
+
+function fetchAllData() {
+ loadDashboard();
+ loadTokoConfig();
+ google.script.run.withSuccessHandler(function(res) {
+ if(res) {
+ dbData = res;
+ setupAutocompletePelanggan();
+ if(document.getElementById('invoice-items').children.length === 0) addInvoiceRow();
+ var activeView = document.querySelector('.view-section.active');
+ if(activeView) {
+ var viewId = activeView.id;
+ if(viewId === 'view-riwayat-invoice') renderTableRiwayat();
+ if(viewId === 'view-master-pelanggan') renderTablePelanggan();
+ if(viewId === 'view-master-barang') renderTableBarang();
+ }
+ }
+ }).getMasterData();
+}
+
+function loadDashboard() {
+ google.script.run.withSuccessHandler(function(res) {
+ if(res) {
+ document.getElementById('dash-count-today').innerText = res.countToday || 0;
+ document.getElementById('dash-total-today').innerText = 'Rp ' + parseNumber(res.totalToday).toLocaleString('id-ID');
+ document.getElementById('dash-count-month').innerText = res.countMonth || 0;
+ document.getElementById('dash-total-month').innerText = 'Rp ' + parseNumber(res.totalMonth).toLocaleString('id-ID');
+ }
+ }).getDashboardData();
+}
+
+function addInvoiceRow() {
+ var tr = document.createElement('tr');
+ var rowId = 'row-' + Date.now();
+ var optBarang = '<option value="">-- Pilih Barang --</option>';
+ if (dbData && dbData.barang) {
+ dbData.barang.forEach(function(b) {
+ optBarang += '<option value="' + escapeHtml(b.id_barang) + '" data-nama="' + escapeHtml(b.nama_barang) + '" data-harga="' + parseNumber(b.harga_acuan) + '" data-satuan="' + escapeHtml(b.satuan_default) + '">' + escapeHtml(b.sku) + ' - ' + escapeHtml(b.nama_barang) + '</option>';
+ });
+ }
+ tr.id = rowId;
+ tr.innerHTML = '<td><select class="form-select form-select-sm item-barang" onchange="itemChanged(\'' + rowId + '\')">' + optBarang + '</select><input type="hidden" class="item-nama"></td>' +
+ '<td><input type="number" class="form-control form-control-sm item-qty" value="1" min="1" oninput="calculateRow(\'' + rowId + '\')"></td>' +
+ '<td><input type="text" class="form-control form-control-sm item-satuan"></td>' +
+ '<td><input type="number" class="form-control form-control-sm item-harga" oninput="calculateRow(\'' + rowId + '\')"></td>' +
+ '<td><input type="number" class="form-control form-control-sm item-total" readonly></td>' +
+ '<td><button type="button" class="btn btn-sm btn-danger" onclick="document.getElementById(\'' + rowId + '\').remove(); calculateTotal();"><i class="bi bi-trash"></i></button></td>';
+ document.getElementById('invoice-items').appendChild(tr);
+ saveDraft();
+}
+
+function itemChanged(rowId) {
+ var row = document.getElementById(rowId);
+ var select = row.querySelector('.item-barang');
+ var selectedOpt = select.options[select.selectedIndex];
+ if(selectedOpt.value) {
+ row.querySelector('.item-nama').value = selectedOpt.dataset.nama || '';
+ row.querySelector('.item-harga').value = selectedOpt.dataset.harga || 0;
+ row.querySelector('.item-satuan').value = selectedOpt.dataset.satuan || '';
+ }
+ calculateRow(rowId);
+ saveDraft();
+}
+
+function calculateRow(rowId) {
+ var row = document.getElementById(rowId);
+ var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+ var harga = parseFloat(row.querySelector('.item-harga').value) || 0;
+ row.querySelector('.item-total').value = qty * harga;
+ calculateTotal();
+
+saveDraft();
+}
+
+function calculateTotal() {
+ var subtotal = 0;
+ document.querySelectorAll('.item-total').forEach(function(input) {
+ subtotal += parseFloat(input.value) || 0;
+ });
+ document.getElementById('inv-subtotal').value = subtotal;
+ var diskon = parseFloat(document.getElementById('inv-diskon').value) || 0;
+ var pajak = parseFloat(document.getElementById('inv-pajak').value) || 0;
+ var ongkir = parseFloat(document.getElementById('inv-ongkir').value) || 0;
+ var dp = parseFloat(document.getElementById("inv-dp").value) || 0;
+ var grandTotal = subtotal - diskon + pajak + ongkir - dp;
+ document.getElementById('inv-grandtotal').value = grandTotal;
+ saveDraft();
+}
+
+function setupAutocompletePelanggan() {
+ var input = document.getElementById('inv-pelanggan-search');
+ var list = document.getElementById('pelanggan-autocomplete');
+ if (!input || !list) return;
+ var new_input = input.cloneNode(true);
+ input.parentNode.replaceChild(new_input, input);
+ new_input.addEventListener('input', function() {
+ var val = this.value.toLowerCase().trim();
+ list.innerHTML = '';
+ if(!val) {
+ list.classList.add('d-none');
+ return;
+ }
+ if (!dbData.pelanggan) return;
+ var matches = dbData.pelanggan.filter(function(p) {
+ return (p.nama_pelanggan || "").toLowerCase().includes(val) || (p.nama_perusahaan || "").toLowerCase().includes(val);
+ });
+ if(matches.length > 0) {
+ list.classList.remove('d-none');
+ matches.forEach(function(p) {
+ var li = document.createElement('li');
+ li.className = 'list-group-item list-group-item-action cursor-pointer';
+ li.innerHTML = '<strong>' + escapeHtml(p.nama_pelanggan) + '</strong> <small class="text-muted">(' + escapeHtml(p.nama_perusahaan) + ')</small>';
+ li.onclick = function() {
+ document.getElementById('inv-id-pelanggan').value = p.id_pelanggan || '';
+ new_input.value = p.nama_pelanggan || '';
+ list.classList.add('d-none');
+ document.getElementById('pelanggan-info-box').innerHTML = '<b>' + escapeHtml(p.nama_pelanggan) + '</b><br>' + escapeHtml(p.alamat_lengkap) + '<br>Telp: ' + escapeHtml(p.nomor_telepon);
+ new_input.dataset.alamat = p.alamat_lengkap || '';
+ new_input.dataset.telp = p.nomor_telepon || '';
+ saveDraft();
+ };
+ list.appendChild(li);
+ });
+ } else {
+ list.classList.add('d-none');
+ }
+ });
+ document.addEventListener('click', function(e) {
+ if(e.target !== new_input) list.classList.add('d-none');
+ });
+}
+
+function getInvoiceData() {
+
+    var idPelanggan = document.getElementById('inv-id-pelanggan').value;
+
+    var items = [];
+
+    document.querySelectorAll('#invoice-items tr').forEach(function(row){
+
+        var id_barang = row.querySelector('.item-barang').value;
+        var nama = row.querySelector('.item-nama').value;
+        var qty = parseFloat(row.querySelector('.item-qty').value);
+        var harga = parseFloat(row.querySelector('.item-harga').value);
+        var satuan = row.querySelector('.item-satuan').value;
+
+        if(id_barang && qty > 0){
+            items.push({
+                id_barang:id_barang,
+                nama_barang:nama,
+                qty:qty,
+                satuan:satuan,
+                harga:harga
+            });
+        }
+
+    });
+
+    return {
+        tanggal_invoice: document.getElementById('inv-tanggal').value,
+        tanggal_jatuh_tempo: document.getElementById('inv-tempo').value,
+        nama_pelanggan: document.getElementById('inv-pelanggan-search').value,
+        alamat_pelanggan: document.getElementById('inv-pelanggan-search').dataset.alamat || '',
+        telepon_pelanggan: document.getElementById('inv-pelanggan-search').dataset.telp || '',
+        daftar_item_json: JSON.stringify(items),
+        subtotal: document.getElementById('inv-subtotal').value,
+        diskon: document.getElementById('inv-diskon').value,
+        pajak: document.getElementById('inv-pajak').value,
+        ongkir: document.getElementById('inv-ongkir').value,
+        dp: document.getElementById('inv-dp').value,
+        grand_total: document.getElementById('inv-grandtotal').value,
+        metode_pembayaran: document.getElementById('inv-metode').value,
+        rekening_tujuan: document.getElementById('inv-rekening').value,
+        catatan_invoice: document.getElementById('inv-catatan').value
+    };
+
+}
+
+function kumpulkanItemInvoice() {
+    var items = [];
+    var valid = true;
+    document.querySelectorAll('#invoice-items tr').forEach(function(row){
+        var id_barang = row.querySelector('.item-barang').value;
+        var nama = row.querySelector('.item-nama').value;
+        var qty = parseFloat(row.querySelector('.item-qty').value);
+        var harga = parseFloat(row.querySelector('.item-harga').value);
+        var satuan = row.querySelector('.item-satuan').value;
+        if (id_barang && qty > 0) {
+            items.push({ id_barang: id_barang, nama_barang: nama, qty: qty, satuan: satuan, harga: harga });
+        } else {
+            valid = false;
+        }
+    });
+    return { items: items, valid: valid };
+}
+
+function unduhPdfInvoice(pdfUrl) {
+    if (!pdfUrl) return;
+    var fileId = "";
+    if (pdfUrl.indexOf("/d/") > -1) fileId = pdfUrl.split("/d/")[1].split("/")[0];
+    if (fileId) {
+        var a = document.createElement("a");
+        a.href = "https://drive.google.com/uc?export=download&id=" + fileId;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } else {
+        window.open(pdfUrl, "_blank");
+    }
+}
+
+function simpanDraft(){
+    var idPelanggan = document.getElementById('inv-id-pelanggan').value;
+    if(!idPelanggan){
+        alert("Pilih pelanggan terlebih dahulu!");
+        return;
+    }
+    var r = kumpulkanItemInvoice();
+    if(!r.valid || r.items.length == 0){
+        alert("Pastikan item sudah diisi.");
+        return;
+    }
+    var data = getInvoiceData();
+    var btnDraft = document.getElementById("btn-simpan-draft");
+    btnDraft.disabled = true;
+
+    // UPDATE DRAFT
+    if(window.currentDraftId){
+        data.id_invoice = window.currentDraftId;
+        google.script.run
+        .withSuccessHandler(function(res){
+            btnDraft.disabled = false;
+            if(res.success){
+                alert("Draft berhasil diperbarui.");
+                loadDraftInvoice();
+            }else{
+                alert(res.message);
+            }
+        })
+        .withFailureHandler(function(err){
+            btnDraft.disabled = false;
+            alert(err.message);
+        })
+        .updateDraftInvoice(data, currentUser);
+        return;
+    }
+
+    // DRAFT BARU
+    google.script.run
+    .withSuccessHandler(function(res){
+        btnDraft.disabled = false;
+        if(res.success){
+            window.currentDraftId = res.draftId;
+            alert("Draft berhasil disimpan.");
+            loadDraftInvoice();
+        }else{
+            alert(res.message);
+        }
+    })
+    .withFailureHandler(function(err){
+        btnDraft.disabled = false;
+        alert(err.message);
+    })
+    .saveDraftInvoice(data, currentUser);
+}
+
+function prosesInvoice() {
+    var idPelanggan = document.getElementById('inv-id-pelanggan').value;
+    if(!idPelanggan) return alert("Pilih pelanggan terlebih dahulu!");
+    var r = kumpulkanItemInvoice();
+    if(!r.valid || r.items.length === 0) return alert("Pastikan baris barang diisi dengan benar dan Qty > 0.");
+
+    var btn = document.getElementById('btn-proses-invoice');
+    if(!btn) return alert("Tombol btn-proses-invoice tidak ditemukan");
+    btn.disabled = true;
+    btn.innerText = "Memproses & Generating PDF...";
+    var resetBtn = function(){
+        btn.disabled = false;
+        btn.innerText = "Proses Invoice & Cetak PDF";
+    };
+    var onFail = function(err){
+        resetBtn();
+        alert("Error Server: " + err.message);
+    };
+    var data = getInvoiceData();
+
+    // MODE EDIT INVOICE
+    if (window.isEditInvoice) {
+        data.id_invoice = window.currentInvoiceId;
+        google.script.run
+        .withSuccessHandler(function(res){
+            resetBtn();
+            if(!res.success){ alert(res.message); return; }
+            alert("Invoice berhasil diperbarui.");
+            window.isEditInvoice = false;
+            window.currentInvoiceId = null;
+            fetchAllData();
+            navigateToView("riwayat-invoice");
+            unduhPdfInvoice(res.pdfUrl);
+        })
+        .withFailureHandler(onFail)
+        .updateInvoiceAndGeneratePDF(data, currentUser);
+        return;
+    }
+
+    // MODE DRAFT -> INVOICE (server membuat nomor INV baru, draft dihapus setelahnya)
+    var draftId = window.currentDraftId || null;
+    if (draftId) data.id_invoice = draftId;
+
+    google.script.run
+    .withSuccessHandler(function(res){
+        resetBtn();
+        if(!res || !res.success){
+            alert("Gagal: " + (res ? res.message : "Terjadi kesalahan."));
+            return;
+        }
+        var selesai = function(){
+            alert(draftId ? "Draft berhasil diproses menjadi Invoice." : "Invoice Berhasil Dibuat!");
+            selesaiReset();
+            navigateToView("riwayat-invoice");
+            unduhPdfInvoice(res.pdfUrl);
+        };
+        if (draftId) {
+            google.script.run
+            .withSuccessHandler(selesai)
+            .withFailureHandler(selesai) // invoice sudah jadi; gagal hapus draft tidak boleh menahan alur
+            .deleteDraft(draftId);
+        } else {
+            selesai();
+        }
+    })
+    .withFailureHandler(onFail)
+    .saveInvoiceAndGeneratePDF(data, currentUser);
+}
+
+function selesaiReset(){
+    window.currentDraftId = null;
+    window.currentInvoiceId = null;
+    window.isEditInvoice = false;
+
+    document.getElementById("form-invoice").reset();
+    document.getElementById("invoice-items").innerHTML = "";
+
+    // reset() tidak mengosongkan input hidden & tanggal; set manual
+    document.getElementById("inv-id-pelanggan").value = "";
+    var inp = document.getElementById("inv-pelanggan-search");
+    inp.dataset.alamat = "";
+    inp.dataset.telp = "";
+    document.getElementById("pelanggan-info-box").innerHTML = "Belum ada pelanggan dipilih.";
+    document.getElementById("inv-tanggal").valueAsDate = new Date();
+    var tempo = new Date();
+    tempo.setDate(tempo.getDate() + 14);
+    document.getElementById("inv-tempo").valueAsDate = tempo;
+
+    addInvoiceRow();
+    fetchAllData();
+}
+
+function renderTableRiwayat() {
+ var searchInput = document.getElementById('search-invoice');
+ var query = (searchInput ? searchInput.value : "").toLowerCase().trim();
+ var html = "";
+ if(!dbData || !dbData.invoice || !Array.isArray(dbData.invoice)) return;
+ dbData.invoice.forEach(function(inv) {
+ var idInv = (inv.id_invoice || "").toString().toLowerCase();
+ var namaPel = (inv.nama_pelanggan || "").toString().toLowerCase();
+ if(!query || idInv.includes(query) || namaPel.includes(query)) {
+ var isVoid = String(inv.status_invoice).toLowerCase() === 'void';
+ var badge = isVoid ? 'bg-danger' : 'bg-success';
+ var pdfUrl = inv.pdf_url || '#';
+ var aksi = '<a href="' + pdfUrl + '" target="_blank" class="btn btn-sm btn-primary">PDF</a>';
+ if(currentUser && currentUser.role === 'Admin' && !isVoid) {
+ aksi += ' <button class="btn btn-sm btn-outline-warning" onclick="editInvoice(\'' + inv.id_invoice + '\')"><i class="bi bi-pencil-square"></i> Edit</button>';
+ aksi += ' <button class="btn btn-sm btn-outline-danger" onclick="voidInvoiceAction(\'' + inv.id_invoice + '\')">Void</button>';
+ }
+ var grandTotalNum = parseNumber(inv.grand_total);
+ var waText = encodeURIComponent('Halo ' + (inv.nama_pelanggan || '') + ', ini adalah tagihan dari Djoeragan Bumbu sejumlah Rp ' + grandTotalNum.toLocaleString('id-ID') + '. Anda dapat melihat detailnya pada link berikut: ' + pdfUrl);
+ aksi += ' <a href="https://wa.me/?text=' + waText + '" target="_blank" class="btn btn-sm btn-success"><i class="bi bi-whatsapp"></i></a>';
+ html += '<tr><td>' + escapeHtml(inv.id_invoice) + '</td><td>' + escapeHtml(inv.tanggal_invoice) + '</td><td>' + escapeHtml(inv.nama_pelanggan) + '</td><td>Rp ' + grandTotalNum.toLocaleString('id-ID') + '</td><td><span class="badge ' + badge + '">' + escapeHtml(inv.status_invoice || 'Final') + '</span></td><td>' + aksi + '</td></tr>';
+ }
+ });
+ var tbody = document.getElementById('table-body-riwayat');
+ if(tbody) tbody.innerHTML = html || '<tr><td colspan="6" class="text-center text-muted">Tidak ada data invoice</td></tr>';
+}
+
+function voidInvoiceAction(id) {
+ if(confirm("Yakin ingin membatalkan/void invoice " + id + "?")) {
+ google.script.run.withSuccessHandler(function(res) {
+ alert(res ? res.message : "Status diperbarui");
+ fetchAllData();
+ }).voidInvoice(id, currentUser);
+ }
+}
+
+function renderTablePelanggan() {
+ var searchInput = document.getElementById('search-pelanggan');
+ var query = (searchInput ? searchInput.value : "").toLowerCase().trim();
+ var html = "";
+ if(!dbData || !dbData.pelanggan || !Array.isArray(dbData.pelanggan)) return;
+ dbData.pelanggan.forEach(function(p, index) {
+ var nama = (p.nama_pelanggan || "").toString().toLowerCase();
+ var pt = (p.nama_perusahaan || "").toString().toLowerCase();
+ var telp = (p.nomor_telepon || "").toString().toLowerCase();
+ var alamat = (p.alamat_lengkap || "").toString().toLowerCase();
+ if (!query || nama.includes(query) || pt.includes(query) || telp.includes(query) || alamat.includes(query)) {
+ html += '<tr><td>' + escapeHtml(p.nama_pelanggan) + '</td><td>' + escapeHtml(p.nama_perusahaan) + '</td><td>' + escapeHtml(p.nomor_telepon) + '</td><td>' + escapeHtml(p.alamat_lengkap) + '</td><td width="120"><button class="btn btn-warning btn-sm" onclick="editPelangganByIndex(' + index + ')">Edit</button></td></tr>';
+ }
+ });
+ var tbody = document.getElementById("table-body-pelanggan");
+ if(tbody) tbody.innerHTML = html || '<tr><td colspan="5" class="text-center text-muted">Tidak ada data pelanggan</td></tr>';
+}
+
+function editPelangganByIndex(index) {
+ if (dbData.pelanggan && dbData.pelanggan[index]) {
+ formPelanggan(dbData.pelanggan[index]);
+ }
+}
+
+function formPelanggan(data) {
+ data = data || {};
+ var nama = prompt("Nama Pelanggan", data.nama_pelanggan || "");
+ if (nama === null) return;
+ if (!nama.trim()) return alert("Nama pelanggan tidak boleh kosong!");
+ var perusahaan = prompt("Nama Perusahaan", data.nama_perusahaan || "");
+ var telepon = prompt("Nomor Telepon", data.nomor_telepon || "");
+ var alamat = prompt("Alamat", data.alamat_lengkap || "");
+ var pelanggan = {
+ id_pelanggan: data.id_pelanggan || "",
+ nama_pelanggan: nama,
+ nama_perusahaan: perusahaan || "",
+ nomor_telepon: telepon || "",
+ alamat_lengkap: alamat || ""
+ };
+ google.script.run.withSuccessHandler(function(res){
+ alert(res ? res.message : "Data tersimpan");
+ fetchAllData();
+ }).savePelanggan(pelanggan, currentUser);
+}
+
+function renderTableBarang() {
+ var searchInput = document.getElementById('search-barang');
+ var query = (searchInput ? searchInput.value : "").toLowerCase().trim();
+ var html = "";
+ if(!dbData || !dbData.barang || !Array.isArray(dbData.barang)) return;
+ dbData.barang.forEach(function(b, index) {
+ var nama = (b.nama_barang || "").toString().toLowerCase();
+ var sku = (b.sku || "").toString().toLowerCase();
+ var kat = (b.kategori || "").toString().toLowerCase();
+ if(!query || nama.includes(query) || sku.includes(query) || kat.includes(query)) {
+ var hargaNum = parseNumber(b.harga_acuan);
+ html += '<tr><td>' + escapeHtml(b.sku) + '</td><td>' + escapeHtml(b.nama_barang) + '</td><td>' + escapeHtml(b.kategori || '-') + '</td><td>' + escapeHtml(b.satuan_default || '-') + '</td><td>Rp ' + hargaNum.toLocaleString('id-ID') + '</td><td width="120"><button class="btn btn-warning btn-sm" onclick="editBarangByIndex(' + index + ')">Edit</button></td></tr>';
+ }
+ });
+ var tbody = document.getElementById('table-body-barang');
+ if(tbody) tbody.innerHTML = html || '<tr><td colspan="6" class="text-center text-muted">Tidak ada data barang</td></tr>';
+}
+
+function editBarangByIndex(index) {
+ if (dbData.barang && dbData.barang[index]) {
+ formBarang(dbData.barang[index]);
+ }
+}
+
+function formBarang(data) {
+ data = data || {};
+ var sku = data.sku;
+ if (!sku) {
+ var acak = Math.floor(1000 + Math.random() * 9000);
+ sku = "BRG-" + acak;
+ }
+ var nama = prompt("Nama Barang", data.nama_barang || "");
+ if (nama === null) return;
+ if (!nama.trim()) return alert("Nama barang tidak boleh kosong!");
+ var kategori = prompt("Kategori Barang", data.kategori || "");
+ var satuan = prompt("Satuan (contoh: Pcs, Kg, Liter)", data.satuan_default || "Pcs");
+ var harga = prompt("Harga Acuan (Rp)", data.harga_acuan || "0");
+ var deskripsi = prompt("Deskripsi Barang", data.deskripsi || "");
+ var barang = {
+ id_barang: data.id_barang || "",
+ sku: sku,
+ nama_barang: nama,
+ kategori: kategori || "",
+ satuan_default: satuan || "Pcs",
+ harga_acuan: parseNumber(harga),
+ deskripsi: deskripsi || ""
+ };
+ google.script.run.withSuccessHandler(function(res) {
+ alert(res ? res.message : "Data tersimpan");
+ fetchAllData();
+ }).saveBarang(barang, currentUser);
+}
+// KONFIGURASI TOKO
+var tokoConfig = { logo_url: '', nama_pemilik: 'Pemilik Toko', jabatan_pemilik: 'Owner' };
+
+function loadTokoConfig() {
+  google.script.run
+  .withSuccessHandler(function(config) {
+    loadRekening();
+    if (config) {
+      tokoConfig = config;
+      document.getElementById('input-nama-pemilik').value = config.nama_pemilik || '';
+      document.getElementById('input-jabatan-pemilik').value = config.jabatan_pemilik || '';
+      if (config.logo_url) {
+        var logoPreview = document.getElementById('logo-preview');
+        logoPreview.src = config.logo_url;
+        logoPreview.classList.remove('d-none');
+      }
+    }
+  })
+  .getTokoConfig();
+}
+
+function uploadLogo() {
+ var fileInput = document.getElementById('input-logo');
+ var file = fileInput.files[0];
+ 
+ if (!file) {
+ return alert('Pilih file logo terlebih dahulu!');
+ }
+ 
+ if (file.size > 2097152) {
+ return alert('Ukuran file maksimal 2MB!');
+ }
+ 
+ if (!file.type.match('image.*')) {
+ return alert('File harus berupa gambar!');
+ }
+ 
+ var reader = new FileReader();
+ reader.onload = function(e) {
+ var base64Data = e.target.result;
+ 
+ // Preview
+ var logoPreview = document.getElementById('logo-preview');
+ logoPreview.src = base64Data;
+ logoPreview.classList.remove('d-none');
+ 
+ // Upload ke Drive
+ google.script.run
+ .withSuccessHandler(function(result) {
+ if (result.success) {
+ alert('Logo berhasil diupload!');
+ 
+ // Simpan URL ke config
+ tokoConfig.logo_url = result.directUrl;
+ var configData = {
+ logo_url: result.directUrl,
+ nama_pemilik: document.getElementById('input-nama-pemilik').value,
+ jabatan_pemilik: document.getElementById('input-jabatan-pemilik').value
+ };
+ 
+ google.script.run.withSuccessHandler(function(res) {
+ if (res.success) {
+ alert('Konfigurasi berhasil disimpan!');
+ loadTokoConfig();
+ }
+ }).saveTokoConfig(configData);
+ } else {
+ alert('Gagal upload logo: ' + result.message);
+ }
+ })
+ .withFailureHandler(function(error) {
+ alert('Error: ' + error.message);
+ })
+ .uploadLogoToDrive(base64Data, 'logo-toko.png');
+ };
+ 
+ reader.readAsDataURL(file);
+}
+
+function saveInfoPemilik() {
+ var namaPemilik = document.getElementById('input-nama-pemilik').value;
+ var jabatanPemilik = document.getElementById('input-jabatan-pemilik').value;
+ 
+ if (!namaPemilik.trim()) {
+ return alert('Nama pemilik tidak boleh kosong!');
+ }
+ 
+ var configData = {
+ logo_url: tokoConfig.logo_url || '',
+ nama_pemilik: namaPemilik,
+ jabatan_pemilik: jabatanPemilik || 'Owner'
+ };
+ 
+ google.script.run
+ .withSuccessHandler(function(res) {
+ if (res.success) {
+ alert('Informasi pemilik berhasil disimpan!');
+ tokoConfig = configData;
+ }
+ })
+ .withFailureHandler(function(error) {
+ alert('Error: ' + error.message);
+ })
+ .saveTokoConfig(configData);
+}
+
+function loadRekening(){
+
+    google.script.run
+    .withSuccessHandler(function(list){
+
+        var html="";
+
+        list.forEach(function(r,i){
+
+            html +=
+            "<tr>" +
+
+            "<td>"+r.nama_bank+"</td>" +
+
+            "<td>"+r.nomor_rekening+"</td>" +
+
+            "<td>"+r.atas_nama+"</td>" +
+
+            "<td>" +
+
+            '<button class="btn btn-warning btn-sm me-1" onclick="formRekening(dbRekening['+i+'])">Edit</button>' +
+
+            '<button class="btn btn-danger btn-sm" onclick="hapusRekening(\''+r.id_rekening+'\')">Hapus</button>' +
+
+            "</td>" +
+
+            "</tr>";
+
+        });
+
+        if(html==""){
+
+            html='<tr><td colspan="4" class="text-center">Belum ada rekening.</td></tr>';
+
+        }
+
+        window.dbRekening=list;
+
+        document.getElementById("rekening-body").innerHTML=html;
+
+    })
+
+    .getRekeningList();
+
+}
+
+function loadRekeningDropdown(selectedId){
+    google.script.run
+    .withSuccessHandler(function(list){
+        // tanpa argumen: pertahankan pilihan yang sedang aktif (hindari balapan dengan pemanggilan ber-argumen)
+        if (selectedId === undefined) selectedId = document.getElementById("inv-rekening").value;
+        var html = '';
+
+        html += '<option value="ALL">Semua Rekening</option>';
+
+        list.forEach(function(r){
+
+            html +=
+            '<option value="'+r.id_rekening+'"' +
+            (selectedId==r.id_rekening?' selected':'') +
+            '>' +
+            r.nama_bank +
+            ' - ' +
+            r.nomor_rekening +
+            '</option>';
+
+        });
+
+        document.getElementById("inv-rekening").innerHTML = html;
+
+    })
+    .getRekeningList();
+
+}
+
+function formRekening(data){
+
+    data=data||{};
+
+    var bank=prompt("Nama Bank",data.nama_bank||"");
+
+    if(bank===null)return;
+
+    var norek=prompt("Nomor Rekening",data.nomor_rekening||"");
+
+    if(norek===null)return;
+
+    var nama=prompt("Atas Nama",data.atas_nama||"");
+
+    if(nama===null)return;
+
+    google.script.run
+
+    .withSuccessHandler(function(res){
+
+        alert(res.message);
+
+        loadRekening();
+
+    })
+
+    .saveRekening({
+
+        id_rekening:data.id_rekening||"",
+
+        nama_bank:bank,
+
+        nomor_rekening:norek,
+
+        atas_nama:nama
+
+    },currentUser);
+
+}
+
+function hapusRekening(id){
+
+    if(!confirm("Hapus rekening ini?")) return;
+
+    google.script.run
+
+    .withSuccessHandler(function(res){
+
+        alert(res.message);
+
+        loadRekening();
+
+    })
+
+    .deleteRekening(id,currentUser);
+
+}
+
+function loadDraftInvoice(){
+    var tbody = document.getElementById("draft-invoice-body");
+    if(!tbody){
+        console.error("draft-invoice-body tidak ditemukan");
+        return;
+    }
+    
+    console.log(google);
+    console.log(google.script);
+    console.log(google.script.run);
+    
+    google.script.run
+    .withSuccessHandler(function(rows){
+        console.log("Draft :",rows);
+        if(!Array.isArray(rows)){
+
+    console.log(rows);
+
+    alert(JSON.stringify(rows));
+
+    tbody.innerHTML =
+    '<tr><td colspan="5" class="text-center text-danger">Data Draft tidak valid.</td></tr>';
+
+    return;
+
+}
+        if(rows.length===0){
+            tbody.innerHTML=
+            '<tr><td colspan="5" class="text-center">Belum ada Draft</td></tr>';
+            return;
+        }
+        var html="";
+       rows.forEach(function(r){
+            html+=`
+            <tr>
+                <td>${r.id_invoice}</td>
+                <td>${r.tanggal_invoice}</td>
+                <td>${r.nama_pelanggan}</td>
+                <td>${r.grand_total}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm me-1" onclick="lanjutkanDraft('${r.id_invoice}')"><i class="bi bi-pencil"></i> Lanjutkan</button>
+                    <button class="btn btn-danger btn-sm" onclick="hapusDraft('${r.id_invoice}')"><i class="bi bi-trash"></i> Hapus</button>
+                </td>
+            </tr>
+            `;
+        });
+        tbody.innerHTML=html;
+    })
+    .withFailureHandler(function(err){
+        console.error(err);
+        tbody.innerHTML=
+        '<tr><td colspan="5" class="text-center text-danger">'+
+        err.message+
+        '</td></tr>';
+    })
+    .getDraftInvoiceList();
+}
+
+function isiPelangganInvoice(d){
+    var inp = document.getElementById("inv-pelanggan-search");
+    inp.value = d.nama_pelanggan || "";
+    inp.dataset.alamat = d.alamat_pelanggan || "";
+    inp.dataset.telp = d.telepon_pelanggan || "";
+    var id = d.id_pelanggan || "";
+    if(!id && dbData && dbData.pelanggan){
+        var nm = String(d.nama_pelanggan || "").trim().toLowerCase();
+        var f = dbData.pelanggan.filter(function(p){
+            return String(p.nama_pelanggan || "").trim().toLowerCase() === nm;
+        })[0];
+        if(f) id = f.id_pelanggan || "";
+    }
+    document.getElementById("inv-id-pelanggan").value = id;
+    document.getElementById("pelanggan-info-box").innerHTML =
+        "<b>" + escapeHtml(d.nama_pelanggan) + "</b><br>" + escapeHtml(d.alamat_pelanggan) +
+        "<br>Telp: " + escapeHtml(d.telepon_pelanggan) +
+        (id ? "" : '<br><span class="text-danger">Pelanggan tidak ada di master. Cari dan pilih ulang di kolom pelanggan.</span>');
+}
+
+function lanjutkanDraft(id){
+    console.log("Klik Lanjutkan:", id);
+    google.script.run
+    .withSuccessHandler(function(res){
+        console.log(res);
+        if(!res.success){
+            alert(res.message);
+            return;
+        }
+        var d = res.data;
+        window.currentDraftId = d.id_invoice;
+        currentInvoiceId = null;
+        isEditInvoice = false;
+        navigateToView("buat-invoice");
+                isiPelangganInvoice(d);
+        document.getElementById("inv-tanggal").value = d.tanggal_invoice || "";
+        document.getElementById("inv-tempo").value = d.tanggal_jatuh_tempo || "";
+        document.getElementById("inv-diskon").value = d.diskon || 0;
+        document.getElementById("inv-pajak").value = d.pajak || 0;
+        document.getElementById("inv-ongkir").value = d.ongkir || 0;
+        document.getElementById("inv-dp").value = d.dp || 0;
+        document.getElementById("inv-subtotal").value = d.subtotal || 0;
+        document.getElementById("inv-grandtotal").value = d.grand_total || 0;
+        document.getElementById("inv-metode").value = d.metode_pembayaran || "";
+        loadRekeningDropdown(d.rekening_tujuan);
+        document.getElementById("inv-catatan").value = d.catatan_invoice || "";
+        document.getElementById("invoice-items").innerHTML = "";
+        var items = [];
+        try{
+            items = JSON.parse(d.daftar_item_json);
+        }catch(e){
+           items=[];
+        }
+        items.forEach(function(item){
+            addInvoiceRow();
+            var row = document.querySelector("#invoice-items tr:last-child");
+            row.querySelector(".item-barang").value = item.id_barang;
+            row.querySelector(".item-nama").value = item.nama_barang;
+            row.querySelector(".item-qty").value = item.qty;
+            row.querySelector(".item-satuan").value = item.satuan;
+            row.querySelector(".item-harga").value = item.harga;
+            row.querySelector(".item-total").value = item.qty * item.harga;
+        });
+        calculateTotal();
+    })
+    .withFailureHandler(function(err){
+        alert(err.message);
+    })
+    .getDraftById(id);
+}
+
+function editInvoice(id){
+
+    google.script.run
+
+    .withSuccessHandler(function(res){
+
+        if(!res.success){
+
+            alert(res.message);
+
+            return;
+
+        }
+
+        var d = res.data;
+
+        currentDraftId = null;
+        currentInvoiceId = d.id_invoice;
+        isEditInvoice = true;
+
+        navigateToView("buat-invoice");
+
+                 isiPelangganInvoice(d);
+        document.getElementById("inv-tanggal").value = d.tanggal_invoice || "";
+        document.getElementById("inv-tempo").value = d.tanggal_jatuh_tempo || "";
+        document.getElementById("inv-diskon").value = d.diskon || 0;
+        document.getElementById("inv-pajak").value = d.pajak || 0;
+        document.getElementById("inv-ongkir").value = d.ongkir || 0;
+        document.getElementById("inv-metode").value = d.metode_pembayaran || "";
+                 loadRekeningDropdown(d.rekening_tujuan || "");
+        document.getElementById("inv-catatan").value = d.catatan_invoice || "";
+
+        document.getElementById("invoice-items").innerHTML = "";
+
+        var items = [];
+
+        try{
+
+            items = JSON.parse(d.daftar_item_json);
+
+        }catch(e){
+
+            items = [];
+
+        }
+
+        items.forEach(function(item){
+
+            addInvoiceRow();
+
+            var row = document.querySelector("#invoice-items tr:last-child");
+
+            row.querySelector(".item-barang").value = item.id_barang;
+            row.querySelector(".item-nama").value = item.nama_barang;
+            row.querySelector(".item-qty").value = item.qty;
+            row.querySelector(".item-satuan").value = item.satuan;
+            row.querySelector(".item-harga").value = item.harga;
+            row.querySelector(".item-total").value = item.qty * item.harga;
+
+        });
+
+        calculateTotal();
+
+    })
+
+    .withFailureHandler(function(err){
+
+        alert(err.message);
+
+    })
+
+    .getInvoiceById(id);
+
+}
+
+function hapusDraft(id){
+
+    if(!confirm("Hapus Draft ini?")){
+        return;
+    }
+
+    google.script.run
+
+    .withSuccessHandler(function(res){
+
+        if(res.success){
+
+            loadDraftInvoice();
+
+        }else{
+
+            alert(res.message);
+
+        }
+
+    })
+
+    .withFailureHandler(function(err){
+
+        alert(err.message);
+
+    })
+
+    .deleteDraft(id);
+
+}
+</script>
+
+<script>
+/* =========================================================
+   PENAWARAN (QUOTATION)
+   Butuh: dbData, currentUser, escapeHtml, parseNumber, navigateToView,
+          addInvoiceRow, calculateTotal (semua sudah ada di atas)
+========================================================= */
+var quoCurrentId = null;
+var quoList = [];
+var quoPick = {};
+
+function quoToday(plus) {
+  var d = new Date();
+  d.setDate(d.getDate() + (plus || 0));
+  var m = ('0' + (d.getMonth() + 1)).slice(-2), day = ('0' + d.getDate()).slice(-2);
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+
+function quoOnOpen() {
+  if (!document.getElementById('quo-tanggal').value) document.getElementById('quo-tanggal').value = quoToday(0);
+  if (!document.getElementById('quo-berlaku').value) document.getElementById('quo-berlaku').value = quoToday(14);
+  quoBuildDatalist();
+  if (document.getElementById('quo-items').children.length === 0) quoAddRow();
+}
+
+function quoBuildDatalist() {
+  var dl = document.getElementById('quo-barang-list');
+  var h = '';
+  (dbData.barang || []).forEach(function (b) {
+    h += '<option value="' + escapeHtml(b.nama_barang) + '"></option>';
+  });
+  dl.innerHTML = h;
+}
+
+/* ---------- Baris item ---------- */
+function quoAddRow(item) {
+  item = item || {};
+  var rowId = 'qrow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  var tr = document.createElement('tr');
+  tr.id = rowId;
+  tr.innerHTML =
+    '<td><input type="text" list="quo-barang-list" class="form-control form-control-sm q-nama" placeholder="Ketik nama / pilih dari master" onchange="quoNamaChanged(\'' + rowId + '\')">' +
+    '<input type="hidden" class="q-id"></td>' +
+    '<td><input type="number" class="form-control form-control-sm q-qty" value="1" min="0" step="any" oninput="quoRowCalc(\'' + rowId + '\')"></td>' +
+    '<td><input type="text" class="form-control form-control-sm q-satuan"></td>' +
+    '<td><input type="number" class="form-control form-control-sm q-harga" step="any" oninput="quoRowCalc(\'' + rowId + '\')"></td>' +
+    '<td><input type="number" class="form-control form-control-sm q-total" readonly></td>' +
+    '<td><button type="button" class="btn btn-sm btn-danger" onclick="quoRemoveRow(\'' + rowId + '\')"><i class="bi bi-trash"></i></button></td>';
+  document.getElementById('quo-items').appendChild(tr);
+  if (item.nama_barang !== undefined) {
+    tr.querySelector('.q-nama').value = item.nama_barang || '';
+    tr.querySelector('.q-id').value = item.id_barang || '';
+    tr.querySelector('.q-qty').value = item.qty !== undefined ? item.qty : 1;
+    tr.querySelector('.q-satuan').value = item.satuan || '';
+    tr.querySelector('.q-harga').value = item.harga !== undefined ? item.harga : '';
+    quoRowCalc(rowId);
+  }
+  return tr;
+}
+
+function quoRemoveRow(rowId) {
+  var r = document.getElementById(rowId);
+  if (r) r.remove();
+  quoCalcTotal();
+}
+
+function quoNamaChanged(rowId) {
+  var r = document.getElementById(rowId);
+  var nama = r.querySelector('.q-nama').value.trim().toLowerCase();
+  var found = (dbData.barang || []).filter(function (b) {
+    return String(b.nama_barang || '').trim().toLowerCase() === nama;
+  })[0];
+  if (found) {
+    r.querySelector('.q-id').value = found.id_barang || '';
+    r.querySelector('.q-satuan').value = found.satuan_default || '';
+    r.querySelector('.q-harga').value = parseNumber(found.harga_acuan);
+  } else {
+    r.querySelector('.q-id').value = ''; // item manual
+  }
+  quoRowCalc(rowId);
+}
+
+function quoRowCalc(rowId) {
+  var r = document.getElementById(rowId);
+  if (!r) return;
+  var qty = parseFloat(r.querySelector('.q-qty').value) || 0;
+  var harga = parseFloat(r.querySelector('.q-harga').value) || 0;
+  r.querySelector('.q-total').value = qty * harga;
+  quoCalcTotal();
+}
+
+function quoCalcTotal() {
+  var sub = 0;
+  document.querySelectorAll('#quo-items .q-total').forEach(function (i) { sub += parseFloat(i.value) || 0; });
+  document.getElementById('quo-subtotal').value = sub;
+  var d = parseFloat(document.getElementById('quo-diskon').value) || 0;
+  var p = parseFloat(document.getElementById('quo-pajak').value) || 0;
+  var o = parseFloat(document.getElementById('quo-ongkir').value) || 0;
+  document.getElementById('quo-grandtotal').value = sub - d + p + o;
+}
+
+/* ---------- Autocomplete pelanggan ---------- */
+(function () {
+  var input = document.getElementById('quo-pelanggan-search');
+  var list = document.getElementById('quo-pelanggan-autocomplete');
+  input.addEventListener('input', function () {
+    document.getElementById('quo-id-pelanggan').value = ''; // ketik bebas
+    var val = this.value.toLowerCase().trim();
+    list.innerHTML = '';
+    if (!val || !dbData.pelanggan) { list.classList.add('d-none'); return; }
+    var m = dbData.pelanggan.filter(function (p) {
+      return (p.nama_pelanggan || '').toLowerCase().indexOf(val) > -1 || (p.nama_perusahaan || '').toLowerCase().indexOf(val) > -1;
+    });
+    if (!m.length) { list.classList.add('d-none'); return; }
+    list.classList.remove('d-none');
+    m.forEach(function (p) {
+      var li = document.createElement('li');
+      li.className = 'list-group-item list-group-item-action cursor-pointer';
+      li.innerHTML = '<strong>' + escapeHtml(p.nama_pelanggan) + '</strong> <small class="text-muted">(' + escapeHtml(p.nama_perusahaan) + ')</small>';
+      li.onclick = function () {
+        document.getElementById('quo-id-pelanggan').value = p.id_pelanggan || '';
+        input.value = p.nama_pelanggan || '';
+        document.getElementById('quo-alamat').value = p.alamat_lengkap || '';
+        document.getElementById('quo-telp').value = p.nomor_telepon || '';
+        list.classList.add('d-none');
+      };
+      list.appendChild(li);
+    });
+  });
+  document.addEventListener('click', function (e) { if (e.target !== input) list.classList.add('d-none'); });
+})();
+
+/* ---------- Modal pilih banyak barang ---------- */
+function quoOpenPicker() {
+  quoPick = {};
+  document.getElementById('quo-pick-search').value = '';
+  var kats = {};
+  (dbData.barang || []).forEach(function (b) { if (b.kategori) kats[b.kategori] = 1; });
+  var h = '<option value="">Semua kategori</option>';
+  Object.keys(kats).sort().forEach(function (k) { h += '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>'; });
+  document.getElementById('quo-pick-kat').innerHTML = h;
+  document.getElementById('quo-pick-all').checked = false;
+  quoRenderPicker();
+  document.getElementById('quo-modal').classList.add('show');
+  document.getElementById('quo-pick-search').focus();
+}
+
+function quoClosePicker() {
+  document.getElementById('quo-modal').classList.remove('show');
+}
+
+function quoRenderPicker() {
+  var q = document.getElementById('quo-pick-search').value.toLowerCase().trim();
+  var kat = document.getElementById('quo-pick-kat').value;
+  var h = '';
+  (dbData.barang || []).forEach(function (b) {
+    var nama = String(b.nama_barang || '').toLowerCase(), sku = String(b.sku || '').toLowerCase();
+    if (q && nama.indexOf(q) === -1 && sku.indexOf(q) === -1) return;
+    if (kat && String(b.kategori || '') !== kat) return;
+    var id = String(b.id_barang);
+    var picked = quoPick[id] !== undefined;
+    h += '<tr data-id="' + escapeHtml(id) + '">' +
+      '<td><input type="checkbox" ' + (picked ? 'checked' : '') + ' onchange="quoTogglePick(this)"></td>' +
+      '<td>' + escapeHtml(b.sku) + '</td><td>' + escapeHtml(b.nama_barang) + '</td>' +
+      '<td>' + escapeHtml(b.kategori || '-') + '</td><td>' + escapeHtml(b.satuan_default || '-') + '</td>' +
+      '<td class="text-end">Rp ' + parseNumber(b.harga_acuan).toLocaleString('id-ID') + '</td>' +
+      '<td><input type="number" class="form-control form-control-sm" min="0" step="any" value="' + (picked ? quoPick[id] : 1) + '" oninput="quoPickQty(this)"></td></tr>';
+  });
+  document.getElementById('quo-pick-body').innerHTML = h || '<tr><td colspan="7" class="text-center text-muted">Tidak ada barang</td></tr>';
+  quoPickCount();
+}
+
+function quoTogglePick(cb) {
+  var tr = cb.closest('tr'), id = tr.dataset.id;
+  var qty = parseFloat(tr.querySelector('input[type=number]').value) || 1;
+  if (cb.checked) quoPick[id] = qty; else delete quoPick[id];
+  quoPickCount();
+}
+
+function quoPickQty(inp) {
+  var tr = inp.closest('tr'), id = tr.dataset.id, cb = tr.querySelector('input[type=checkbox]');
+  var qty = parseFloat(inp.value) || 0;
+  if (qty > 0) { cb.checked = true; quoPick[id] = qty; } else { cb.checked = false; delete quoPick[id]; }
+  quoPickCount();
+}
+
+function quoPickAll(master) {
+  document.querySelectorAll('#quo-pick-body tr[data-id]').forEach(function (tr) {
+    var cb = tr.querySelector('input[type=checkbox]');
+    cb.checked = master.checked;
+    quoTogglePick(cb);
+  });
+}
+
+function quoPickCount() {
+  document.getElementById('quo-pick-count').innerText = Object.keys(quoPick).length + ' dipilih';
+}
+
+function quoApplyPicker() {
+  var ids = Object.keys(quoPick);
+  if (!ids.length) { alert('Belum ada barang dipilih.'); return; }
+  // buang baris kosong
+  document.querySelectorAll('#quo-items tr').forEach(function (r) {
+    if (!r.querySelector('.q-nama').value.trim()) r.remove();
+  });
+  ids.forEach(function (id) {
+    var b = (dbData.barang || []).filter(function (x) { return String(x.id_barang) === id; })[0];
+    if (!b) return;
+    // sudah ada di tabel => tambah qty
+    var dup = null;
+    document.querySelectorAll('#quo-items tr').forEach(function (r) {
+      if (r.querySelector('.q-id').value === id) dup = r;
+    });
+    if (dup) {
+      dup.querySelector('.q-qty').value = (parseFloat(dup.querySelector('.q-qty').value) || 0) + quoPick[id];
+      quoRowCalc(dup.id);
+    } else {
+      quoAddRow({ id_barang: id, nama_barang: b.nama_barang, qty: quoPick[id], satuan: b.satuan_default || '', harga: parseNumber(b.harga_acuan) });
+    }
+  });
+  quoClosePicker();
+  quoCalcTotal();
+}
+
+/* ---------- Simpan ---------- */
+function quoCollect() {
+  var items = [];
+  document.querySelectorAll('#quo-items tr').forEach(function (r) {
+    var nama = r.querySelector('.q-nama').value.trim();
+    var qty = parseFloat(r.querySelector('.q-qty').value) || 0;
+    var harga = parseFloat(r.querySelector('.q-harga').value) || 0;
+    if (nama && qty > 0) {
+      items.push({ id_barang: r.querySelector('.q-id').value || '', nama_barang: nama, qty: qty, satuan: r.querySelector('.q-satuan').value, harga: harga });
+    }
+  });
+  return {
+    id_penawaran: quoCurrentId || '',
+    tanggal_penawaran: document.getElementById('quo-tanggal').value,
+    tanggal_berlaku: document.getElementById('quo-berlaku').value,
+    nama_pelanggan: document.getElementById('quo-pelanggan-search').value.trim(),
+    alamat_pelanggan: document.getElementById('quo-alamat').value,
+    telepon_pelanggan: document.getElementById('quo-telp').value,
+    daftar_item_json: JSON.stringify(items),
+    subtotal: document.getElementById('quo-subtotal').value,
+    diskon: document.getElementById('quo-diskon').value,
+    pajak: document.getElementById('quo-pajak').value,
+    ongkir: document.getElementById('quo-ongkir').value,
+    grand_total: document.getElementById('quo-grandtotal').value,
+    syarat_ketentuan: document.getElementById('quo-syarat').value,
+    catatan_penawaran: document.getElementById('quo-catatan').value
+  };
+}
+
+function quoDownloadPdf(url) {
+  if (!url) return;
+  var fileId = url.indexOf('/d/') > -1 ? url.split('/d/')[1].split('/')[0] : '';
+  if (fileId) {
+    var a = document.createElement('a');
+    a.href = 'https://drive.google.com/uc?export=download&id=' + fileId;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function quoSimpan(mode) {
+  var data = quoCollect();
+  if (!data.nama_pelanggan) return alert('Nama pelanggan wajib diisi.');
+  if (JSON.parse(data.daftar_item_json).length === 0) return alert('Isi minimal 1 item (nama + qty > 0).');
+  if (mode === 'final' && (!data.tanggal_penawaran || !data.tanggal_berlaku)) return alert('Tanggal penawaran dan berlaku wajib diisi.');
+  var bd = document.getElementById('btn-quo-draft'), bf = document.getElementById('btn-quo-final');
+  var oldF = bf.innerHTML;
+  bd.disabled = true; bf.disabled = true;
+  if (mode === 'final') bf.innerText = 'Membuat PDF...';
+  google.script.run
+    .withSuccessHandler(function (res) {
+      bd.disabled = false; bf.disabled = false; bf.innerHTML = oldF;
+      if (!res || !res.success) return alert('Gagal: ' + (res ? res.message : 'tidak diketahui'));
+      if (mode === 'final') {
+        alert('Penawaran ' + res.id_penawaran + ' dibuat.');
+        quoReset();
+        navigateToView('riwayat-penawaran');
+        quoDownloadPdf(res.pdfUrl);
+      } else {
+        quoCurrentId = res.id_penawaran;
+        quoShowBanner();
+        alert('Draft tersimpan: ' + res.id_penawaran);
+      }
+    })
+    .withFailureHandler(function (err) {
+      bd.disabled = false; bf.disabled = false; bf.innerHTML = oldF;
+      alert('Error server: ' + err.message);
+    })
+    .savePenawaran(data, currentUser, mode);
+}
+
+function quoShowBanner() {
+  var b = document.getElementById('quo-edit-banner');
+  if (quoCurrentId) { b.innerText = 'Mode edit: ' + quoCurrentId; b.classList.remove('d-none'); }
+  else b.classList.add('d-none');
+}
+
+function quoReset() {
+  quoCurrentId = null;
+  document.getElementById('form-penawaran').reset();
+  document.getElementById('quo-id-pelanggan').value = '';
+  document.getElementById('quo-items').innerHTML = '';
+  document.getElementById('quo-tanggal').value = quoToday(0);
+  document.getElementById('quo-berlaku').value = quoToday(14);
+  quoAddRow();
+  quoCalcTotal();
+  quoShowBanner();
+}
+
+/* ---------- Riwayat ---------- */
+function quoLoadList() {
+  google.script.run
+    .withSuccessHandler(function (rows) { quoList = rows || []; quoRenderList(); })
+    .withFailureHandler(function (e) { alert('Gagal memuat penawaran: ' + e.message); })
+    .getPenawaranList();
+}
+
+function quoStatusBadge(q) {
+  var st = String(q.status_penawaran || 'Draft');
+  var map = { Draft: 'bg-warning text-dark', Final: 'bg-primary', Disetujui: 'bg-success', Ditolak: 'bg-danger', Void: 'bg-dark' };
+  if (st === 'Final' && q.tanggal_berlaku && String(q.tanggal_berlaku) < quoToday(0)) {
+    return '<span class="badge bg-secondary">Kedaluwarsa</span>';
+  }
+  return '<span class="badge ' + (map[st] || 'bg-secondary') + '">' + escapeHtml(st) + '</span>';
+}
+
+function quoRenderList() {
+  var q = document.getElementById('quo-search').value.toLowerCase().trim();
+  var fs = document.getElementById('quo-filter-status').value;
+  var admin = currentUser && currentUser.role === 'Admin';
+  var h = '';
+  quoList.forEach(function (r) {
+    var id = String(r.id_penawaran || ''), nama = String(r.nama_pelanggan || '');
+    var st = String(r.status_penawaran || 'Draft');
+    if (q && id.toLowerCase().indexOf(q) === -1 && nama.toLowerCase().indexOf(q) === -1) return;
+    if (fs && st !== fs) return;
+    var total = parseNumber(r.grand_total);
+    var aksi = '';
+    if (r.pdf_url) aksi += '<a href="' + escapeHtml(r.pdf_url) + '" target="_blank" class="btn btn-sm btn-primary">PDF</a> ';
+    if (st !== 'Void') aksi += '<button class="btn btn-sm btn-outline-warning" onclick="quoEdit(\'' + id + '\')"><i class="bi bi-pencil-square"></i></button> ';
+    if (st === 'Final') {
+      aksi += '<button class="btn btn-sm btn-outline-success" onclick="quoStatus(\'' + id + '\',\'Disetujui\')">Setuju</button> ';
+      aksi += '<button class="btn btn-sm btn-outline-danger" onclick="quoStatus(\'' + id + '\',\'Ditolak\')">Tolak</button> ';
+    }
+    if (st === 'Final' || st === 'Disetujui') {
+      aksi += '<button class="btn btn-sm btn-success" onclick="quoToInvoice(\'' + id + '\')">Jadikan Invoice</button> ';
+      var wa = encodeURIComponent('Halo ' + nama + ', berikut penawaran dari Djoeragan Bumbu No. ' + id + ' sejumlah Rp ' + total.toLocaleString('id-ID') + '. Detail: ' + (r.pdf_url || ''));
+      aksi += '<a href="https://wa.me/?text=' + wa + '" target="_blank" class="btn btn-sm btn-success"><i class="bi bi-whatsapp"></i></a> ';
+    }
+    if (st === 'Draft') aksi += '<button class="btn btn-sm btn-outline-danger" onclick="quoHapus(\'' + id + '\')"><i class="bi bi-trash"></i></button> ';
+    if (admin && st !== 'Void' && st !== 'Draft') aksi += '<button class="btn btn-sm btn-outline-dark" onclick="quoStatus(\'' + id + '\',\'Void\')">Void</button>';
+    h += '<tr><td>' + escapeHtml(id) + '</td><td>' + escapeHtml(r.tanggal_penawaran) + '</td><td>' + escapeHtml(r.tanggal_berlaku) +
+      '</td><td>' + escapeHtml(nama) + '</td><td>Rp ' + total.toLocaleString('id-ID') + '</td><td>' + quoStatusBadge(r) + '</td><td>' + aksi + '</td></tr>';
+  });
+  document.getElementById('table-body-penawaran').innerHTML = h || '<tr><td colspan="7" class="text-center text-muted">Belum ada penawaran</td></tr>';
+}
+
+function quoFind(id) {
+  return quoList.filter(function (r) { return String(r.id_penawaran) === String(id); })[0];
+}
+
+function quoEdit(id) {
+  var r = quoFind(id);
+  if (!r) return;
+  navigateToView('buat-penawaran');
+  quoCurrentId = id;
+  document.getElementById('quo-pelanggan-search').value = r.nama_pelanggan || '';
+  document.getElementById('quo-alamat').value = r.alamat_pelanggan || '';
+  document.getElementById('quo-telp').value = r.telepon_pelanggan || '';
+  document.getElementById('quo-tanggal').value = r.tanggal_penawaran || quoToday(0);
+  document.getElementById('quo-berlaku').value = r.tanggal_berlaku || quoToday(14);
+  document.getElementById('quo-diskon').value = r.diskon || 0;
+  document.getElementById('quo-pajak').value = r.pajak || 0;
+  document.getElementById('quo-ongkir').value = r.ongkir || 0;
+  document.getElementById('quo-syarat').value = r.syarat_ketentuan || '';
+  document.getElementById('quo-catatan').value = r.catatan_penawaran || '';
+  document.getElementById('quo-items').innerHTML = '';
+  var items = [];
+  try { items = JSON.parse(r.daftar_item_json || '[]'); } catch (e) {}
+  items.forEach(function (it) { quoAddRow(it); });
+  if (!items.length) quoAddRow();
+  quoCalcTotal();
+  quoShowBanner();
+}
+
+function quoStatus(id, status) {
+  if (!confirm('Ubah status ' + id + ' menjadi ' + status + '?')) return;
+  google.script.run
+    .withSuccessHandler(function (res) { alert(res.message || 'OK'); quoLoadList(); })
+    .withFailureHandler(function (e) { alert(e.message); })
+    .setStatusPenawaran(id, status, currentUser);
+}
+
+function quoHapus(id) {
+  if (!confirm('Hapus draft ' + id + '?')) return;
+  google.script.run
+    .withSuccessHandler(function (res) { if (!res.success) alert(res.message); quoLoadList(); })
+    .withFailureHandler(function (e) { alert(e.message); })
+    .deletePenawaranDraft(id, currentUser);
+}
+
+/* ---------- Jadikan Invoice ---------- */
+function quoToInvoice(id) {
+  var r = quoFind(id);
+  if (!r) return;
+  var items = [];
+  try { items = JSON.parse(r.daftar_item_json || '[]'); } catch (e) {}
+  var manual = items.filter(function (i) { return !i.id_barang; }).length;
+  var msg = 'Salin penawaran ' + id + ' ke form Invoice?';
+  if (manual) msg += '\n\n' + manual + ' item manual (tidak ada di master) harus dipilih ulang dari master barang, kalau tidak invoice menolaknya.';
+  if (!confirm(msg)) return;
+
+  navigateToView('buat-invoice');
+  window.currentDraftId = null; window.currentInvoiceId = null; window.isEditInvoice = false;
+
+  var inp = document.getElementById('inv-pelanggan-search');
+  inp.value = r.nama_pelanggan || '';
+  inp.dataset.alamat = r.alamat_pelanggan || '';
+  inp.dataset.telp = r.telepon_pelanggan || '';
+  var pel = (dbData.pelanggan || []).filter(function (p) {
+    return String(p.nama_pelanggan || '').trim().toLowerCase() === String(r.nama_pelanggan || '').trim().toLowerCase();
+  })[0];
+  document.getElementById('inv-id-pelanggan').value = pel ? (pel.id_pelanggan || '') : '';
+  document.getElementById('pelanggan-info-box').innerHTML = '<b>' + escapeHtml(r.nama_pelanggan) + '</b><br>' + escapeHtml(r.alamat_pelanggan) + '<br>Telp: ' + escapeHtml(r.telepon_pelanggan) +
+    (pel ? '' : '<br><span class="text-danger">Pelanggan belum ada di master. Cari dan pilih ulang pelanggan di kolom atas.</span>');
+
+  document.getElementById('inv-tanggal').value = quoToday(0);
+  document.getElementById('inv-tempo').value = quoToday(14);
+  document.getElementById('inv-diskon').value = r.diskon || 0;
+  document.getElementById('inv-pajak').value = r.pajak || 0;
+  document.getElementById('inv-ongkir').value = r.ongkir || 0;
+  document.getElementById('inv-dp').value = 0;
+  document.getElementById('inv-catatan').value = r.catatan_penawaran || '';
+
+  document.getElementById('invoice-items').innerHTML = '';
+  items.forEach(function (it) {
+    addInvoiceRow();
+    var row = document.querySelector('#invoice-items tr:last-child');
+    row.querySelector('.item-barang').value = it.id_barang || '';
+    row.querySelector('.item-nama').value = it.nama_barang || '';
+    row.querySelector('.item-qty').value = it.qty;
+    row.querySelector('.item-satuan').value = it.satuan || '';
+    row.querySelector('.item-harga').value = it.harga;
+    row.querySelector('.item-total').value = (parseFloat(it.qty) || 0) * (parseFloat(it.harga) || 0);
+  });
+  calculateTotal();
+
+  if (String(r.status_penawaran) === 'Final') {
+    google.script.run.setStatusPenawaran(id, 'Disetujui', currentUser);
+  }
+}
+
+</script>
+</body>
+</html>
