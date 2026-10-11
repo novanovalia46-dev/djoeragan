@@ -1,5 +1,5 @@
 /* ====== EDIT SATU BARIS INI ====== */
-var GAS_URL = "https://script.google.com/macros/s/GANTI_DENGAN_ID_DEPLOY/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbzSObjLNww7Q46Ii4b0RMQ9tsPdKOueuyrGwntTy5Dcj3qf8ocwX7diHEERud1ycQI/exec";
 /* ================================== */
 
 (function () {
